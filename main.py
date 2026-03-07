@@ -181,6 +181,14 @@ def show_all(book: AddressBook) -> str:
     return "\n".join(str(record) for record in book.data.values())
 
 
+@input_error
+def show_one(args: str, book: AddressBook) -> str:
+    if not args:
+        pass
+    print(args)
+    return book.data[args[0]]
+
+
 def save_data(book, filename=ADDRESSBOOK_FILE_NAME) -> None:
     with open(filename, "wb") as f:
         pickle.dump(book, f)
@@ -208,7 +216,6 @@ def parse_input(user_input: str) -> tuple[None, list[Any]] | tuple[str, list[str
 def main():
     book = load_data()
     print("Welcome to the assistant bot!")
-
     while True:
         user_input = input("Enter a command: ").strip()
 
@@ -219,7 +226,7 @@ def main():
         command, args = parse_input(user_input=user_input)
 
         if command in ("close", "exit"):
-            save_data(book)
+            save_data(book=book)
             print("Save data...")
             time.sleep(3)
             print("Save data successfully")
@@ -234,8 +241,10 @@ def main():
             print(change_contact(args=args, book=book))
         elif command == "phone":
             print(show_phone(args=args, book=book))
-        elif command == "all":
+        elif command == "all-numbers":
             print(show_all(book=book))
+        elif command == "one-number":
+            print(show_one(args=args, book=book))
         elif command == "add-birthday":
             print(add_birthday_handler(args=args, book=book))
         elif command == "show-birthday":
