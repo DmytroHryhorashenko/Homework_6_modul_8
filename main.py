@@ -2,7 +2,6 @@ import time
 from collections import UserDict
 from datetime import datetime, timedelta
 import pickle
-from typing import Any
 
 ADDRESSBOOK_FILE_NAME = "addressbook.pkl"
 
@@ -30,8 +29,6 @@ class Phone(Field):
 
 class Birthday(Field):
     def __init__(self, value: str):
-        if not value:
-            raise ValueError("Birthday cannot be empty.")
         try:
             datetime.strptime(value, "%d.%m.%Y")
         except ValueError:
@@ -45,17 +42,17 @@ class Record:
         self.phones = []
         self.birthday = None
 
-    def add_phone(self, phone: str) -> None:
+    def add_phone(self, phone: str):
         self.phones.append(Phone(phone))
 
-    def change_phone(self, old_phone: str, new_phone: str) -> bool:
+    def change_phone(self, old_phone: str, new_phone: str):
         for i, phone in enumerate(self.phones):
             if phone.value == old_phone:
                 self.phones[i] = Phone(new_phone)
                 return True
         return False
 
-    def add_birthday(self, birthday: str) -> None:
+    def add_birthday(self, birthday: str):
         self.birthday = Birthday(birthday)
 
     def __str__(self):
@@ -65,13 +62,13 @@ class Record:
 
 
 class AddressBook(UserDict):
-    def add_record(self, record: Record) -> None:
+    def add_record(self, record: Record):
         self.data[record.name.value] = record
 
-    def find(self, name: str) -> Record:
+    def find(self, name: str):
         return self.data.get(name)
 
-    def get_upcoming_birthdays(self, days: int = 7) -> list[dict]:
+    def get_upcoming_birthdays(self, days=7):
         today = datetime.today().date()
         result = []
 
@@ -89,6 +86,7 @@ class AddressBook(UserDict):
                 delta = (next_birthday - today).days
 
                 if 0 <= delta <= days:
+
                     if next_birthday.weekday() >= 5:
                         next_birthday += timedelta(days=7 - next_birthday.weekday())
 
@@ -108,8 +106,8 @@ def input_error(func):
             return func(*args, **kwargs)
         except IndexError:
             return "Not enough arguments provided."
-        except ValueError as error:
-            return str(error)
+        except ValueError as e:
+            return str(e)
         except AttributeError:
             return "Contact not found."
 
@@ -117,7 +115,7 @@ def input_error(func):
 
 
 @input_error
-def add_contact(args: str, book: AddressBook) -> str:
+def add_contact(args, book: AddressBook):
     name, phone, *_ = args
     record = book.find(name)
 
@@ -133,39 +131,52 @@ def add_contact(args: str, book: AddressBook) -> str:
 
 
 @input_error
-def change_contact(args: str, book: AddressBook) -> str:
+def change_contact(args, book: AddressBook):
     name, old_phone, new_phone, *_ = args
     record = book.find(name)
 
-    if record.change_phone(old_phone, new_phone):
+    if record and record.change_phone(old_phone, new_phone):
         return "Phone updated."
+
     return "Old phone not found."
 
 
 @input_error
-def show_phone(args: str, book: AddressBook) -> str:
+def show_phone(args, book: AddressBook):
     name = args[0]
     record = book.find(name)
+
+    if not record:
+        return "Contact not found."
+
     return ", ".join(str(phone) for phone in record.phones)
 
 
 @input_error
-def add_birthday_handler(args: str, book: AddressBook) -> str:
+def add_birthday_handler(args, book: AddressBook):
     name, birthday, *_ = args
     record = book.find(name)
+
+    if not record:
+        return "Contact not found."
+
     record.add_birthday(birthday)
     return "Birthday added."
 
 
 @input_error
-def show_birthday(args: str, book: AddressBook) -> str:
+def show_birthday(args, book: AddressBook):
     name = args[0]
     record = book.find(name)
+
+    if not record or not record.birthday:
+        return "Birthday not found."
+
     return record.birthday.value
 
 
 @input_error
-def birthdays(book: AddressBook) -> str:
+def birthdays(book: AddressBook):
     upcoming = book.get_upcoming_birthdays()
 
     if not upcoming:
@@ -175,26 +186,25 @@ def birthdays(book: AddressBook) -> str:
 
 
 @input_error
-def show_all(book: AddressBook) -> str:
+def show_all(book: AddressBook):
     if not book.data:
         return "Address book is empty."
+
     return "\n".join(str(record) for record in book.data.values())
 
 
 @input_error
-def show_one(args: str, book: AddressBook) -> str:
-    if not args:
-        pass
-    print(args)
-    return book.data[args[0]]
+def show_one(args, book: AddressBook):
+    name = args[0]
+    return str(book.data[name])
 
 
-def save_data(book, filename=ADDRESSBOOK_FILE_NAME) -> None:
+def save_data(book, filename=ADDRESSBOOK_FILE_NAME):
     with open(filename, "wb") as f:
         pickle.dump(book, f)
 
 
-def load_data(filename=ADDRESSBOOK_FILE_NAME) -> AddressBook:
+def load_data(filename=ADDRESSBOOK_FILE_NAME):
     try:
         with open(filename, "rb") as f:
             return pickle.load(f)
@@ -202,12 +212,13 @@ def load_data(filename=ADDRESSBOOK_FILE_NAME) -> AddressBook:
         return AddressBook()
 
 
-def parse_input(user_input: str) -> tuple[None, list[Any]] | tuple[str, list[str]]:
+def parse_input(user_input: str):
     parts = user_input.strip().split()
+
     if not parts:
         return None, []
 
-    command = parts[0]
+    command = parts[0].lower()
     args = parts[1:]
 
     return command, args
@@ -216,6 +227,7 @@ def parse_input(user_input: str) -> tuple[None, list[Any]] | tuple[str, list[str
 def main():
     book = load_data()
     print("Welcome to the assistant bot!")
+
     while True:
         user_input = input("Enter a command: ").strip()
 
@@ -223,34 +235,57 @@ def main():
             print("Please enter a command.")
             continue
 
-        command, args = parse_input(user_input=user_input)
+        command, args = parse_input(user_input)
 
         if command in ("close", "exit"):
-            save_data(book=book)
-            print("Save data...")
-            time.sleep(3)
-            print("Save data successfully")
+            save_data(book)
+            print("Saving data...")
             time.sleep(1)
+            print("Data saved successfully")
             print("Good bye!")
             break
+
         elif command == "hello":
             print("How can I help you?")
+
+        elif command == "help":
+            print("""
+Available commands:
+
+add NAME PHONE
+change NAME OLD_PHONE NEW_PHONE
+phone NAME
+add-birthday NAME DD.MM.YYYY
+show-birthday NAME
+birthdays
+all
+exit
+""")
+
         elif command == "add":
-            print(add_contact(args=args, book=book))
+            print(add_contact(args, book))
+
         elif command == "change":
-            print(change_contact(args=args, book=book))
+            print(change_contact(args, book))
+
         elif command == "phone":
-            print(show_phone(args=args, book=book))
-        elif command == "all-numbers":
-            print(show_all(book=book))
+            print(show_phone(args, book))
+
+        elif command == "all":
+            print(show_all(book))
+
         elif command == "one-number":
-            print(show_one(args=args, book=book))
+            print(show_one(args, book))
+
         elif command == "add-birthday":
-            print(add_birthday_handler(args=args, book=book))
+            print(add_birthday_handler(args, book))
+
         elif command == "show-birthday":
-            print(show_birthday(args=args, book=book))
+            print(show_birthday(args, book))
+
         elif command == "birthdays":
-            print(birthdays(book=book))
+            print(birthdays(book))
+
         else:
             print("Invalid command.")
 
